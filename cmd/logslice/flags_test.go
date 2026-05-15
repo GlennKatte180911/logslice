@@ -83,3 +83,18 @@ func TestBuildChain_InvalidLevels(t *testing.T) {
 		t.Fatal("expected error for blank level entry, got nil")
 	}
 }
+
+func TestBuildChain_ValidPatternAndLevels(t *testing.T) {
+	cfg := Config{
+		Format:  "text",
+		Pattern: "timeout",
+		Levels:  "ERROR,WARN,INFO",
+	}
+	chain, err := buildChain(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error building chain with pattern and levels: %v", err)
+	}
+	if chain == nil {
+		t.Error("expected non-nil chain")
+	}
+}
