@@ -3,45 +3,35 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
-	"strings"
 )
 
-type config struct {
-	from    string
-	to      string
-	pattern string
-	input   io.Reader
+// Config holds all parsed command-line options.
+type Config struct {
+	From    string
+	To      string
+	Pattern string
+	Levels  string
+	Format  string
+	Input   string
 }
 
-func parseFlags(args []string) (*config, error) {
+// parseFlags parses os.Args and returns a Config.
+// It writes usage to stderr and exits on error.
+func parseFlags(args []string) (Config, error) {
 	fs := flag.NewFlagSet("logslice", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
 
-	var (
-		from    = fs.String("from", "", "start of time range (RFC3339, e.g. 2024-01-01T00:00:00Z)")
-		to      = fs.String("to", "", "end of time range (RFC3339, e.g. 2024-01-02T00:00:00Z)")
-		pattern = fs.String("pattern", "", "regex pattern to match against log message")
-		file    = fs.String("file", "", "path to log file (defaults to stdin)")
-	)
+	var cfg Config
+	fs.StringVar(&cfg.From, "from", "", "start of time range (RFC3339)")
+	fs.StringVar(&cfg.To, "to", "", "end of time range (RFC3339)")
+	fs.StringVar(&cfg.Pattern, "pattern", "", "regex pattern to match against log message")
+	fs.StringVar(&cfg.Levels, "levels", "", "comma-separated list of log levels to include (e.g. ERROR,WARN)")
+	fs.StringVar(&cfg.Format, "format", "text", "output format: text, json, or csv")
+	fs.StringVar(&cfg.Input, "input", "", "path to log file (defaults to stdin)")
 
 	if err := fs.Parse(args); err != nil {
-		return nil, err
-	}
-
-	cfg := &config{
-		from:    strings.TrimSpace(*from),
-		to:      strings.TrimSpace(*to),
-		pattern: strings.TrimSpace(*pattern),
-		input:   os.Stdin,
-	}
-
-	if *file != "" {
-		f, err := os.Open(*file)
-		if err != nil {
-			return nil, fmt.Errorf("opening file %q: %w", *file, err)
-		}
-		cfg.input = f
+		return Config{}, fmt.Errorf("parseFlags: %w", err)
 	}
 
 	return cfg, nil
