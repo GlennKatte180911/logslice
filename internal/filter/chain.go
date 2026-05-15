@@ -1,12 +1,15 @@
 package filter
 
 import (
+	"strings"
+
 	"github.com/user/logslice/internal/parser"
 )
 
-// Filter is the common interface implemented by all log entry filters.
+// Filter is the interface implemented by all log entry filters.
 type Filter interface {
-	Matches(e parser.Entry) bool
+	Matches(parser.Entry) bool
+	String() string
 }
 
 // Chain combines multiple filters with AND semantics: an entry must satisfy
@@ -15,17 +18,25 @@ type Chain struct {
 	filters []Filter
 }
 
-// NewChain returns a Chain that applies each provided filter in order.
+// NewChain creates a Chain from the provided filters. Nil filters are ignored.
 func NewChain(filters ...Filter) *Chain {
-	return &Chain{filters: filters}
+	var valid []Filter
+	for _, f := range filters {
+		if f != nil {
+			valid = append(valid, f)
+		}
+	}
+	return &Chain{filters: valid}
 }
 
 // Add appends a filter to the chain.
 func (c *Chain) Add(f Filter) {
-	c.filters = append(c.filters, f)
+	if f != nil {
+		c.filters = append(c.filters, f)
+	}
 }
 
-// Matches returns true only if every filter in the chain matches the entry.
+// Matches returns true only when every filter in the chain matches the entry.
 // An empty chain matches all entries.
 func (c *Chain) Matches(e parser.Entry) bool {
 	for _, f := range c.filters {
@@ -36,14 +47,11 @@ func (c *Chain) Matches(e parser.Entry) bool {
 	return true
 }
 
-// Apply filters the provided slice of entries, returning only those that
-// satisfy the chain.
-func (c *Chain) Apply(entries []parser.Entry) []parser.Entry {
-	result := make([]parser.Entry, 0, len(entries))
-	for _, e := range entries {
-		if c.Matches(e) {
-			result = append(result, e)
-		}
+// String returns a comma-separated list of filter descriptions.
+func (c *Chain) String() string {
+	parts := make([]string, len(c.filters))
+	for i, f := range c.filters {
+		parts[i] = f.String()
 	}
-	return result
+	return "chain[" + strings.Join(parts, ", ") + "]"
 }
