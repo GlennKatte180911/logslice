@@ -31,6 +31,16 @@ func TestNewLevelFilter_BlankEntry(t *testing.T) {
 	}
 }
 
+func TestNewLevelFilter_SingleLevel(t *testing.T) {
+	f, err := filter.NewLevelFilter("ERROR")
+	if err != nil {
+		t.Fatalf("unexpected error for single level: %v", err)
+	}
+	if !f.Matches(makeLevelEntry("ERROR")) {
+		t.Error("expected single-level filter to match ERROR")
+	}
+}
+
 func TestLevelFilter_Matches(t *testing.T) {
 	f, err := filter.NewLevelFilter("ERROR,WARN")
 	if err != nil {
