@@ -29,6 +29,13 @@ func TestNewTimeRange_InvalidFrom(t *testing.T) {
 	}
 }
 
+func TestNewTimeRange_InvalidTo(t *testing.T) {
+	_, err := filter.NewTimeRange("2024-01-01T00:00:00Z", "not-a-date")
+	if err == nil {
+		t.Fatal("expected error for invalid to timestamp")
+	}
+}
+
 func TestNewTimeRange_ToBeforeFrom(t *testing.T) {
 	_, err := filter.NewTimeRange("2024-01-02T00:00:00Z", "2024-01-01T00:00:00Z")
 	if err == nil {
@@ -75,5 +82,14 @@ func TestTimeRange_Apply(t *testing.T) {
 	got := tr.Apply(entries)
 	if len(got) != 3 {
 		t.Fatalf("Apply returned %d entries, want 3", len(got))
+	}
+}
+
+func TestTimeRange_Apply_EmptyInput(t *testing.T) {
+	tr, _ := filter.NewTimeRange("2024-06-10T00:00:00Z", "2024-06-20T00:00:00Z")
+
+	got := tr.Apply([]parser.Entry{})
+	if len(got) != 0 {
+		t.Fatalf("Apply on empty input returned %d entries, want 0", len(got))
 	}
 }
