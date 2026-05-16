@@ -1,59 +1,64 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
-	"os"
-	"strings"
+	"io"
+	"time"
 )
 
 // config holds all parsed CLI flags.
 type config struct {
-	From    string
-	To      string
-	Pattern string
-	Levels  []string
-	Field   string // "key=value" pair for field filter
-	Format  string
-	Input   string
+	from    string
+	to      string
+	before  string
+	after   string
+	pattern string
+	level   string
+	field   string
+	format  string
+	showStats bool
 }
 
-// parseFlags parses os.Args and returns a populated config.
-// On error it writes usage to stderr and returns a non-nil error.
-func parseFlags(args []string) (*config, error) {
+func parseFlags(args []string, stderr io.Writer) (*config, error) {
 	fs := flag.NewFlagSet("logslice", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	fs.SetOutput(stderr)
 
-	var (
-		from    = fs.String("from", "", "start of time range (RFC3339)")
-		to      = fs.String("to", "", "end of time range (RFC3339)")
-		pattern = fs.String("pattern", "", "regex pattern to match against log message")
-		levels  = fs.String("levels", "", "comma-separated list of log levels to include")
-		field   = fs.String("field", "", "field filter as key=value")
-		format  = fs.String("format", "text", "output format: text, json, csv")
-		input   = fs.String("input", "-", "input file path; use - for stdin")
-	)
+	cfg := &config{}
+
+	fs.StringVar(&cfg.from, "from", "", "include entries at or after this time (RFC3339)")
+	fs.StringVar(&cfg.to, "to", "", "include entries at or before this time (RFC3339)")
+	fs.StringVar(&cfg.before, "before", "", "include entries strictly before this time (RFC3339)")
+	fs.StringVar(&cfg.after, "after", "", "include entries strictly after this time (RFC3339)")
+	fs.StringVar(&cfg.pattern, "pattern", "", "filter entries whose message matches this regex")
+	fs.StringVar(&cfg.level, "level", "", "comma-separated list of log levels to include")
+	fs.StringVar(&cfg.field, "field", "", "key=value pair to match in entry fields")
+	fs.StringVar(&cfg.format, "format", "text", "output format: text, json, csv")
+	fs.BoolVar(&cfg.showStats, "stats", false, "print match statistics to stderr after processing")
 
 	if err := fs.Parse(args); err != nil {
-		return nil, fmt.Errorf("parseFlags: %w", err)
+		return nil, err
 	}
 
-	var lvlList []string
-	if *levels != "" {
-		for _, l := range strings.Split(*levels, ",") {
-			if t := strings.TrimSpace(l); t != "" {
-				lvlList = append(lvlList, t)
-			}
+	if cfg.from != "" && cfg.after != "" {
+		return nil, errors.New("flags -from and -after are mutually exclusive")
+	}
+	if cfg.to != "" && cfg.before != "" {
+		return nil, errors.New("flags -to and -before are mutually exclusive")
+	}
+
+	for _, pair := range []struct{ name, val string }{
+		{"from", cfg.from}, {"to", cfg.to},
+		{"before", cfg.before}, {"after", cfg.after},
+	} {
+		if pair.val == "" {
+			continue
+		}
+		if _, err := time.Parse(time.RFC3339, pair.val); err != nil {
+			return nil, fmt.Errorf("flag -%s: invalid RFC3339 time %q", pair.name, pair.val)
 		}
 	}
 
-	return &config{
-		From:    *from,
-		To:      *to,
-		Pattern: *pattern,
-		Levels:  lvlList,
-		Field:   *field,
-		Format:  *format,
-		Input:   *input,
-	}, nil
+	return cfg, nil
 }
