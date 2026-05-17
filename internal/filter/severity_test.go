@@ -43,9 +43,9 @@ func TestNewSeverityFilter_ValidLevel(t *testing.T) {
 
 func TestSeverityFilter_Matches(t *testing.T) {
 	tests := []struct {
-		minLevel string
+		minLevel   string
 		entryLevel string
-		want     bool
+		want       bool
 	}{
 		{"info", "trace", false},
 		{"info", "debug", false},
@@ -82,5 +82,19 @@ func TestSeverityFilter_String(t *testing.T) {
 	expected := "severity(>=error)"
 	if got != expected {
 		t.Errorf("String() = %q, want %q", got, expected)
+	}
+}
+
+func TestSeverityFilter_AllValidLevels(t *testing.T) {
+	validLevels := []string{"trace", "debug", "info", "warn", "error", "fatal"}
+	for _, level := range validLevels {
+		f, err := filter.NewSeverityFilter(level)
+		if err != nil {
+			t.Errorf("NewSeverityFilter(%q) returned unexpected error: %v", level, err)
+			continue
+		}
+		if f == nil {
+			t.Errorf("NewSeverityFilter(%q) returned nil filter", level)
+		}
 	}
 }
